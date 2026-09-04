@@ -13,9 +13,55 @@
       rel="stylesheet"
     />
     <title>Freebuff — Acompanhamento pessoal</title>
+    <style>
+      /* Fallback estático: só aparece se o JS nunca montar a aplicação
+         (ex.: build sem VITE_CONVEX_URL). Some assim que o React renderiza. */
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fffbeb;
+        font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      .boot strong {
+        display: block;
+        color: #92400e;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      .boot span {
+        display: block;
+        margin-top: 8px;
+        color: #78716c;
+        font-size: 13px;
+        max-width: 340px;
+        opacity: 0;
+        animation: boot-hint 0.01s 1.5s forwards;
+      }
+      @keyframes boot-hint {
+        to {
+          opacity: 1;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot">
+        <div>
+          <strong>Freebuff</strong>
+          <span>
+            Se esta mensagem permanecer, a aplicação não carregou — verifique se a
+            variável <b>VITE_CONVEX_URL</b> foi definida no build.
+          </span>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

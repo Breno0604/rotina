@@ -30,10 +30,10 @@ jobs:
 
       # Build-time env: Vite replaces import.meta.env.VITE_CONVEX_URL with
       # undefined when unset, which dead-code-eliminates the whole app into
-      # a throwing stub (silent broken bundle). This repo's backend is the
-      # local Convex dev server (see README); the URL below only guarantees
-      # a complete compile — the artifact is not a deployment.
+      # a throwing stub (silent broken bundle). The URL below is the real
+      # production backend (Convex cloud deployment), so the compile also
+      # matches what Netlify ships — the artifact itself is not a deployment.
       - name: Production build
         env:
-          VITE_CONVEX_URL: http://127.0.0.1:3210
+          VITE_CONVEX_URL: https://earnest-panther-236.convex.cloud
         run: npm run build
