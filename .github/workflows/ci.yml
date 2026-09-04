@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    name: Typecheck, tests & build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (LTS 22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Reproducible install from the committed lockfile (package-lock.json).
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # Build-time env: Vite replaces import.meta.env.VITE_CONVEX_URL with
+      # undefined when unset, which dead-code-eliminates the whole app into
+      # a throwing stub (silent broken bundle). This repo's backend is the
+      # local Convex dev server (see README); the URL below only guarantees
+      # a complete compile — the artifact is not a deployment.
+      - name: Production build
+        env:
+          VITE_CONVEX_URL: http://127.0.0.1:3210
+        run: npm run build
