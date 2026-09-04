@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.local
+convex/_generated
+.convex
+.freebuff
+*.log
+.DS_Store
