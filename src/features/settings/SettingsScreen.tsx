@@ -24,7 +24,7 @@ import {
 import { keyStore } from "../../services/keyStore";
 import { testKey } from "../../services/ai/service";
 
-const APP_VERSION = "0.1.0";
+const APP_VERSION = "0.1.1";
 
 export function SettingsScreen() {
   const installationId = useInstallationId();
