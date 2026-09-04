@@ -2,13 +2,13 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { AI_ERROR_MESSAGES, GROQ_MODELS, APP_NAME, PALETTES } from "../../types/domain";
-import { adoptInstallationId, useInstallationId } from "../../app/installation";
+import { useInstallationId } from "../../app/installation";
 import { usePrefs, type ThemePref } from "../../app/prefs";
 import { useHasKey } from "../../hooks/useHasKey";
 import { useToast } from "../../components/Toast";
 import { Button } from "../../components/Button";
 import { ConfirmSheet } from "../../components/Sheet";
-import { Select, TextInput } from "../../components/Field";
+import { Select } from "../../components/Field";
 import {
   IconCheck,
   IconDownload,
@@ -16,7 +16,6 @@ import {
   IconEyeOff,
   IconInfo,
   IconKey,
-  IconLink,
   IconMoon,
   IconSun,
   IconTrash,
@@ -25,7 +24,7 @@ import {
 import { keyStore } from "../../services/keyStore";
 import { testKey } from "../../services/ai/service";
 
-const APP_VERSION = "0.1.3";
+const APP_VERSION = "0.1.4";
 
 export function SettingsScreen() {
   const installationId = useInstallationId();
@@ -33,7 +32,6 @@ export function SettingsScreen() {
   const { has, refresh } = useHasKey();
   const { toast } = useToast();
   const clearAll = useMutation(api.data.clearAllData);
-  const mergeInstallations = useMutation(api.link.merge);
 
   const [showKey, setShowKey] = useState(false);
   const [keyInput, setKeyInput] = useState("");
@@ -44,11 +42,6 @@ export function SettingsScreen() {
   const [wipeBusy, setWipeBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [importBusy, setImportBusy] = useState(false);
-  const [linkInput, setLinkInput] = useState("");
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [confirmLink, setConfirmLink] = useState(false);
-  const [pendingLink, setPendingLink] = useState<string | null>(null);
-  const [linkBusy, setLinkBusy] = useState(false);
 
   const resolvedTheme =
     prefs.theme === "auto"
@@ -67,16 +60,6 @@ export function SettingsScreen() {
   const dataReady =
     objectives !== undefined && records !== undefined && notes !== undefined &&
     memories !== undefined && analyses !== undefined;
-
-  const hasLocalData =
-    dataReady &&
-    !!(
-      objectives?.length ||
-      records?.length ||
-      notes?.length ||
-      memories?.length ||
-      analyses?.length
-    );
 
   const configured = has === true;
 
@@ -123,57 +106,6 @@ export function SettingsScreen() {
       });
     }
     setKeyBusy(null);
-  }
-
-  async function copyInstallationId() {
-    try {
-      await navigator.clipboard.writeText(installationId);
-      toast("Código copiado — cole em Configurações → Dispositivos no outro aparelho.");
-    } catch {
-      toast("Não foi possível copiar.", "error");
-    }
-  }
-
-  function startLink() {
-    const code = linkInput.trim();
-    if (!code) {
-      setLinkError("Cole o código exibido no outro dispositivo.");
-      return;
-    }
-    if (code === installationId) {
-      setLinkError("Este já é o código deste dispositivo.");
-      return;
-    }
-    if (!/^[A-Za-z0-9_-]{8,80}$/.test(code)) {
-      setLinkError("Código inválido — copie o código inteiro do outro dispositivo.");
-      return;
-    }
-    setLinkError(null);
-    setPendingLink(code);
-    setConfirmLink(true);
-  }
-
-  async function confirmLinkAdoption() {
-    if (!pendingLink) return;
-    const from = installationId;
-    const to = pendingLink;
-    setLinkBusy(true);
-    try {
-      // Mescla os dados deste dispositivo no espaço do código colado antes de
-      // trocar o código — assim nada fica órfão sob o código antigo.
-      await mergeInstallations({ from, to });
-    } catch {
-      // Falha de rede/backend: ainda adota o código (comportamento antigo);
-      // os dados locais permanecem sob o código antigo.
-    }
-    setLinkBusy(false);
-    if (adoptInstallationId(to)) {
-      window.location.reload();
-    } else {
-      setConfirmLink(false);
-      setPendingLink(null);
-      setLinkError("Não foi possível conectar — confira o código e tente de novo.");
-    }
   }
 
   function exportData() {
@@ -374,7 +306,8 @@ export function SettingsScreen() {
 
       <SettingsGroup title="Dados" icon={<IconInfo size={16} />}>
         <p className="t-sm t-muted" style={{ marginBottom: 12 }}>
-          Seus dados ficam no banco do aplicativo, separados por dispositivo (este navegador).
+          Seus dados ficam num único espaço compartilhado: o que você registra em um
+          aparelho aparece automaticamente nos outros — sem códigos nem configuração.
         </p>
         <div className="settings-actions">
           <Button variant="secondary" icon={<IconDownload size={16} />} disabled={!dataReady} onClick={exportData}>
@@ -409,59 +342,12 @@ export function SettingsScreen() {
         </div>
       </SettingsGroup>
 
-      <SettingsGroup title="Dispositivos" icon={<IconLink size={16} />}>
-        <p className="t-sm t-muted" style={{ marginBottom: 12 }}>
-          Os dados ficam separados por dispositivo (navegador). Para ver os mesmos dados
-          em outro aparelho, conecte os dois uma única vez com o código abaixo — depois
-          disso, tudo sincroniza em tempo real.
-        </p>
-        <div className="install-id">
-          <span className="t-xs t-muted">Código deste dispositivo</span>
-          <code>{installationId}</code>
-          <Button variant="ghost" size="sm" onClick={copyInstallationId}>
-            Copiar
-          </Button>
-        </div>
-        <form
-          className="connect-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            startLink();
-          }}
-        >
-          <TextInput
-            label="Conectar a outro dispositivo"
-            hint="No outro aparelho: Configurações → Dispositivos → Copiar. Cole o código dele aqui."
-            placeholder="Código do outro dispositivo"
-            value={linkInput}
-            error={linkError}
-            onChange={(e) => {
-              setLinkInput(e.target.value);
-              if (linkError) setLinkError(null);
-            }}
-            autoComplete="off"
-            spellCheck={false}
-            autoCapitalize="none"
-          />
-          <div className="settings-actions" style={{ marginTop: 8 }}>
-            <Button variant="primary" icon={<IconLink size={16} />} type="submit">
-              Conectar
-            </Button>
-          </div>
-        </form>
-        <p className="t-xs t-muted">
-          Ao conectar, os dados deste dispositivo são movidos (mesclados) para o espaço do
-          código colado — nada é apagado. Se os dois lados tiverem objetivos parecidos,
-          podem aparecer duplicados; basta excluir um.
-        </p>
-      </SettingsGroup>
-
       <SettingsGroup title={`Sobre o ${APP_NAME}`} icon={<IconInfo size={16} />}>
         <p className="t-sm">
-          Versão {APP_VERSION}. Sem cadastro: os dados são separados por dispositivo
-          (navegador) e podem ser conectados entre aparelhos em Configurações →
-          Dispositivos. A chave da IA nunca sai do seu aparelho. A IA interpreta os dados;
-          os cálculos são feitos localmente.
+          Versão {APP_VERSION}. Sem cadastro: os dados ficam num único espaço
+          compartilhado entre todos os seus aparelhos automaticamente. A chave da IA nunca
+          sai do seu aparelho. A IA interpreta os dados; os cálculos são feitos
+          localmente.
         </p>
       </SettingsGroup>
 
@@ -485,29 +371,6 @@ export function SettingsScreen() {
               removidos do banco. Considere exportar um backup antes.
             </>
           )
-        }
-      />
-
-      <ConfirmSheet
-        open={confirmLink}
-        onClose={() => {
-          setConfirmLink(false);
-          setPendingLink(null);
-        }}
-        onConfirm={confirmLinkAdoption}
-        title="Conectar a outro dispositivo"
-        confirmLabel="Conectar e recarregar"
-        loading={linkBusy}
-        message={
-          <>
-            Este dispositivo passará a usar o código do outro aparelho e o app será
-            recarregado. Os dados criados aqui (objetivos, registros, observações,
-            memórias e análises) são movidos para o espaço do código colado e continuarão
-            visíveis junto com os dados dele — nada é apagado.
-            {!hasLocalData
-              ? " Este dispositivo ainda não tem dados, então nada precisará ser movido."
-              : ""}
-          </>
         }
       />
     </>

@@ -166,7 +166,12 @@ export function paletteLabel(id: PaletteId): string {
 /* Local storage keys                                                  */
 /* ------------------------------------------------------------------ */
 
-export const INSTALLATION_KEY = "fb.installationId";
+/**
+ * Single shared space: every device uses this fixed scope id, so all
+ * installations see and edit the SAME data with no linking or codes.
+ * (The app has no login — anyone with the URL shares this space.)
+ */
+export const SHARED_SPACE_ID = "freebuff-shared-space-v1";
 export const PREFS_KEY = "fb.prefs.v1";
 export const CHAT_KEY = "fb.chat.v1";
 export const THEME_KEY = "fb.theme";
