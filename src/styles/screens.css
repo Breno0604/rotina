@@ -683,6 +683,9 @@
   overflow-wrap: anywhere;
   min-width: 0;
 }
+.connect-form {
+  margin-top: var(--space-md);
+}
 
 /* ---------- FAB + nav extras ---------- */
 .fab {

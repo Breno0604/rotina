@@ -2,13 +2,13 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { AI_ERROR_MESSAGES, GROQ_MODELS, APP_NAME, PALETTES } from "../../types/domain";
-import { useInstallationId } from "../../app/installation";
+import { adoptInstallationId, useInstallationId } from "../../app/installation";
 import { usePrefs, type ThemePref } from "../../app/prefs";
 import { useHasKey } from "../../hooks/useHasKey";
 import { useToast } from "../../components/Toast";
 import { Button } from "../../components/Button";
 import { ConfirmSheet } from "../../components/Sheet";
-import { Select } from "../../components/Field";
+import { Select, TextInput } from "../../components/Field";
 import {
   IconCheck,
   IconDownload,
@@ -16,6 +16,7 @@ import {
   IconEyeOff,
   IconInfo,
   IconKey,
+  IconLink,
   IconMoon,
   IconSun,
   IconTrash,
@@ -24,7 +25,7 @@ import {
 import { keyStore } from "../../services/keyStore";
 import { testKey } from "../../services/ai/service";
 
-const APP_VERSION = "0.1.1";
+const APP_VERSION = "0.1.2";
 
 export function SettingsScreen() {
   const installationId = useInstallationId();
@@ -42,6 +43,10 @@ export function SettingsScreen() {
   const [wipeBusy, setWipeBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [importBusy, setImportBusy] = useState(false);
+  const [linkInput, setLinkInput] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [confirmLink, setConfirmLink] = useState(false);
+  const [pendingLink, setPendingLink] = useState<string | null>(null);
 
   const resolvedTheme =
     prefs.theme === "auto"
@@ -60,6 +65,16 @@ export function SettingsScreen() {
   const dataReady =
     objectives !== undefined && records !== undefined && notes !== undefined &&
     memories !== undefined && analyses !== undefined;
+
+  const hasLocalData =
+    dataReady &&
+    !!(
+      objectives?.length ||
+      records?.length ||
+      notes?.length ||
+      memories?.length ||
+      analyses?.length
+    );
 
   const configured = has === true;
 
@@ -106,6 +121,45 @@ export function SettingsScreen() {
       });
     }
     setKeyBusy(null);
+  }
+
+  async function copyInstallationId() {
+    try {
+      await navigator.clipboard.writeText(installationId);
+      toast("Código copiado — cole em Configurações → Dispositivos no outro aparelho.");
+    } catch {
+      toast("Não foi possível copiar.", "error");
+    }
+  }
+
+  function startLink() {
+    const code = linkInput.trim();
+    if (!code) {
+      setLinkError("Cole o código exibido no outro dispositivo.");
+      return;
+    }
+    if (code === installationId) {
+      setLinkError("Este já é o código deste dispositivo.");
+      return;
+    }
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(code)) {
+      setLinkError("Código inválido — copie o código inteiro do outro dispositivo.");
+      return;
+    }
+    setLinkError(null);
+    setPendingLink(code);
+    setConfirmLink(true);
+  }
+
+  function confirmLinkAdoption() {
+    if (!pendingLink) return;
+    if (adoptInstallationId(pendingLink)) {
+      window.location.reload();
+    } else {
+      setConfirmLink(false);
+      setPendingLink(null);
+      setLinkError("Não foi possível conectar — confira o código e tente de novo.");
+    }
   }
 
   function exportData() {
@@ -306,7 +360,7 @@ export function SettingsScreen() {
 
       <SettingsGroup title="Dados" icon={<IconInfo size={16} />}>
         <p className="t-sm t-muted" style={{ marginBottom: 12 }}>
-          Seus dados ficam no banco do aplicativo, separados por instalação (este navegador).
+          Seus dados ficam no banco do aplicativo, separados por dispositivo (este navegador).
         </p>
         <div className="settings-actions">
           <Button variant="secondary" icon={<IconDownload size={16} />} disabled={!dataReady} onClick={exportData}>
@@ -334,37 +388,66 @@ export function SettingsScreen() {
         </div>
         <div className="danger-zone">
           <p className="t-sm t-strong">Apagar todos os dados</p>
-          <p className="t-sm t-muted">Remove objetivos, registros, memórias e análises desta instalação.</p>
+          <p className="t-sm t-muted">Remove objetivos, registros, memórias e análises deste dispositivo.</p>
           <Button variant="danger" icon={<IconTrash size={16} />} onClick={() => setConfirmWipe(true)}>
             Apagar tudo
           </Button>
         </div>
       </SettingsGroup>
 
-      <SettingsGroup title={`Sobre o ${APP_NAME}`} icon={<IconInfo size={16} />}>
-        <p className="t-sm">
-          Versão {APP_VERSION}. Sem cadastro: os dados são separados por esta instalação
-          (navegador). A chave da IA nunca sai do seu aparelho. A IA interpreta os dados;
-          os cálculos são feitos localmente.
+      <SettingsGroup title="Dispositivos" icon={<IconLink size={16} />}>
+        <p className="t-sm t-muted" style={{ marginBottom: 12 }}>
+          Os dados ficam separados por dispositivo (navegador). Para ver os mesmos dados
+          em outro aparelho, conecte os dois uma única vez com o código abaixo — depois
+          disso, tudo sincroniza em tempo real.
         </p>
         <div className="install-id">
-          <span className="t-xs t-muted">ID desta instalação</span>
+          <span className="t-xs t-muted">Código deste dispositivo</span>
           <code>{installationId}</code>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(installationId);
-                toast("ID copiado.");
-              } catch {
-                toast("Não foi possível copiar.", "error");
-              }
-            }}
-          >
+          <Button variant="ghost" size="sm" onClick={copyInstallationId}>
             Copiar
           </Button>
         </div>
+        <form
+          className="connect-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            startLink();
+          }}
+        >
+          <TextInput
+            label="Conectar a outro dispositivo"
+            hint="No outro aparelho: Configurações → Dispositivos → Copiar. Cole o código dele aqui."
+            placeholder="Código do outro dispositivo"
+            value={linkInput}
+            error={linkError}
+            onChange={(e) => {
+              setLinkInput(e.target.value);
+              if (linkError) setLinkError(null);
+            }}
+            autoComplete="off"
+            spellCheck={false}
+            autoCapitalize="none"
+          />
+          <div className="settings-actions" style={{ marginTop: 8 }}>
+            <Button variant="primary" icon={<IconLink size={16} />} type="submit">
+              Conectar
+            </Button>
+          </div>
+        </form>
+        <p className="t-xs t-muted">
+          Dica: conecte a partir do dispositivo com menos dados. O que já existe aqui não é
+          apagado — fica guardado sob o código antigo deste dispositivo.
+        </p>
+      </SettingsGroup>
+
+      <SettingsGroup title={`Sobre o ${APP_NAME}`} icon={<IconInfo size={16} />}>
+        <p className="t-sm">
+          Versão {APP_VERSION}. Sem cadastro: os dados são separados por dispositivo
+          (navegador) e podem ser conectados entre aparelhos em Configurações →
+          Dispositivos. A chave da IA nunca sai do seu aparelho. A IA interpreta os dados;
+          os cálculos são feitos localmente.
+        </p>
       </SettingsGroup>
 
       <ConfirmSheet
@@ -383,10 +466,30 @@ export function SettingsScreen() {
             "Tem certeza? Esta ação não pode ser desfeita."
           ) : (
             <>
-              Objetivos, registros, observações, memórias e análises desta instalação serão
+              Objetivos, registros, observações, memórias e análises deste dispositivo serão
               removidos do banco. Considere exportar um backup antes.
             </>
           )
+        }
+      />
+
+      <ConfirmSheet
+        open={confirmLink}
+        onClose={() => {
+          setConfirmLink(false);
+          setPendingLink(null);
+        }}
+        onConfirm={confirmLinkAdoption}
+        title="Conectar a outro dispositivo"
+        confirmLabel="Conectar e recarregar"
+        message={
+          <>
+            Este dispositivo passará a usar o código do outro aparelho e o app será
+            recarregado para buscar os dados dele.
+            {hasLocalData
+              ? " Os dados criados aqui antes da conexão não são apagados, mas ficarão ocultos sob o código antigo — exporte um backup antes, se precisar deles."
+              : ""}
+          </>
         }
       />
     </>
