@@ -13,6 +13,7 @@ import type * as crons from "../crons.js";
 import type * as dailyNotes from "../dailyNotes.js";
 import type * as data from "../data.js";
 import type * as installations from "../installations.js";
+import type * as link from "../link.js";
 import type * as memories from "../memories.js";
 import type * as memoryLogic from "../memoryLogic.js";
 import type * as objectives from "../objectives.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   dailyNotes: typeof dailyNotes;
   data: typeof data;
   installations: typeof installations;
+  link: typeof link;
   memories: typeof memories;
   memoryLogic: typeof memoryLogic;
   objectives: typeof objectives;

@@ -25,7 +25,7 @@ import {
 import { keyStore } from "../../services/keyStore";
 import { testKey } from "../../services/ai/service";
 
-const APP_VERSION = "0.1.2";
+const APP_VERSION = "0.1.3";
 
 export function SettingsScreen() {
   const installationId = useInstallationId();
@@ -33,6 +33,7 @@ export function SettingsScreen() {
   const { has, refresh } = useHasKey();
   const { toast } = useToast();
   const clearAll = useMutation(api.data.clearAllData);
+  const mergeInstallations = useMutation(api.link.merge);
 
   const [showKey, setShowKey] = useState(false);
   const [keyInput, setKeyInput] = useState("");
@@ -47,6 +48,7 @@ export function SettingsScreen() {
   const [linkError, setLinkError] = useState<string | null>(null);
   const [confirmLink, setConfirmLink] = useState(false);
   const [pendingLink, setPendingLink] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
 
   const resolvedTheme =
     prefs.theme === "auto"
@@ -151,9 +153,21 @@ export function SettingsScreen() {
     setConfirmLink(true);
   }
 
-  function confirmLinkAdoption() {
+  async function confirmLinkAdoption() {
     if (!pendingLink) return;
-    if (adoptInstallationId(pendingLink)) {
+    const from = installationId;
+    const to = pendingLink;
+    setLinkBusy(true);
+    try {
+      // Mescla os dados deste dispositivo no espaço do código colado antes de
+      // trocar o código — assim nada fica órfão sob o código antigo.
+      await mergeInstallations({ from, to });
+    } catch {
+      // Falha de rede/backend: ainda adota o código (comportamento antigo);
+      // os dados locais permanecem sob o código antigo.
+    }
+    setLinkBusy(false);
+    if (adoptInstallationId(to)) {
       window.location.reload();
     } else {
       setConfirmLink(false);
@@ -436,8 +450,9 @@ export function SettingsScreen() {
           </div>
         </form>
         <p className="t-xs t-muted">
-          Dica: conecte a partir do dispositivo com menos dados. O que já existe aqui não é
-          apagado — fica guardado sob o código antigo deste dispositivo.
+          Ao conectar, os dados deste dispositivo são movidos (mesclados) para o espaço do
+          código colado — nada é apagado. Se os dois lados tiverem objetivos parecidos,
+          podem aparecer duplicados; basta excluir um.
         </p>
       </SettingsGroup>
 
@@ -482,12 +497,15 @@ export function SettingsScreen() {
         onConfirm={confirmLinkAdoption}
         title="Conectar a outro dispositivo"
         confirmLabel="Conectar e recarregar"
+        loading={linkBusy}
         message={
           <>
             Este dispositivo passará a usar o código do outro aparelho e o app será
-            recarregado para buscar os dados dele.
-            {hasLocalData
-              ? " Os dados criados aqui antes da conexão não são apagados, mas ficarão ocultos sob o código antigo — exporte um backup antes, se precisar deles."
+            recarregado. Os dados criados aqui (objetivos, registros, observações,
+            memórias e análises) são movidos para o espaço do código colado e continuarão
+            visíveis junto com os dados dele — nada é apagado.
+            {!hasLocalData
+              ? " Este dispositivo ainda não tem dados, então nada precisará ser movido."
               : ""}
           </>
         }
