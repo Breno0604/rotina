@@ -1,0 +1,28 @@
+# Normalize line endings: all text files are stored as LF in the repo and
+# checked out as LF on every platform (no CRLF conversion on Windows).
+* text=auto eol=lf
+
+# Keep these text types explicit (already covered by `*`, for clarity).
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+# Binary files: git must never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.zip binary
